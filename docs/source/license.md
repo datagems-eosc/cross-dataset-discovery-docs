@@ -68,7 +68,7 @@ DataGEMS EOSC. (2025). Cross-Dataset Discovery. GitHub. https://github.com/datag
 BibTeX:
 
 ```bibtex
-@software{dataset_profiler,
+@software{cross-dataset-discovery,
   author = {{DataGEMS EOSC}},
   title = {Cross-Dataset Discovery},
   year = {2025},
