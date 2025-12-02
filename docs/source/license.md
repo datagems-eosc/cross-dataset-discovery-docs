@@ -28,28 +28,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-<!-- TODO: Update this
 ## Third-Party Licenses
 
 The Cross-Dataset Discovery service uses several third-party libraries, each with its own license. The major dependencies and their licenses are listed below:
 
 ### Python Libraries
 
-| Library  | License              |
-| -------- | -------------------- |
-| FastAPI  | MIT License          |
-| Pandas   | BSD 3-Clause License |
-| PyYAML   | MIT License          |
-| Pydantic | MIT License          |
-| Uvicorn  | BSD 3-Clause License |
+| Library      | License              |
+| ------------ | -------------------- |
+| FAISS        | MIT License          |
+| FastAPI      | MIT License          |
+| NLTK         | Apache 2.0 License   |
+| Pandas       | BSD 3-Clause License |
+| Pydantic     | MIT License          |
+| Pyserini     | Apache 2.0 License   |
+| PyTorch      | PyTorch License      |
+| Transformers | Apache 2.0 License   |
+| Uvicorn      | BSD 3-Clause License |
 
-### JavaScript Libraries
-
-| Library             | License                   |
-| ------------------- | ------------------------- |
-| Material for MkDocs | MIT License               |
-| Font Awesome        | Font Awesome Free License | 
--->
 
 ## European Union Funding
 
