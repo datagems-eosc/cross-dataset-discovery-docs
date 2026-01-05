@@ -1,16 +1,15 @@
-# API Overview
+
+## API Overview
 
 The Cross-Dataset Discovery service exposes a RESTful API for performing search operations.
 
-## Base URL
-
-The API is served from the root of the application. All endpoint paths are relative to the base URL where the service is deployed:
+### Base URL
 
 **Base URL:** [https://datagems-dev.scayle.es/cross-dataset-discovery/](https://datagems-dev.scayle.es/cross-dataset-discovery/)
 
-## Authentication
+### Authentication
 
-All endpoints are protected and require a valid JWT Bearer token. See the [Security](./security.md) page for more details.
+All endpoints are protected and require a valid JWT Bearer token.
 
 ---
 
@@ -20,47 +19,50 @@ All endpoints are protected and require a valid JWT Bearer token. See the [Secur
 
 Performs a search query against the indexed datasets.
 
-*   **Endpoint:** `POST /search/`
-*   **Description:** Submits a natural language query and returns a ranked list of relevant results. The search can be optionally filtered to a specific set of datasets. The results returned are automatically filtered based on the user's access permissions.
-*   **Request Body:**
+* **Endpoint:** `POST /search/`
+* **Description:** Submits a natural language query and returns a ranked list of relevant results. Supports Sparse (BM25), Dense (Semantic), and Hybrid search modes.
+* **Request Body:**
 
-    ```json
+```json
+{
+  "query": "string",
+  "k": 5,
+  "dataset_ids": [
+    "string"
+  ],
+  "search_mode": "sparse" 
+}
+```
+
+* `search_mode`: Optional. Can be `"sparse"` (default), `"dense"`, or `"hybrid"`.
+
+* **Response Body (Success):**
+
+```json
+{
+  "query_time": "retrieval time in milliseconds",
+  "results": [
     {
-      "query": "string",
-      "k": 5,
-      "dataset_ids": [
-        "string"
-      ]
+      "content": "The main text content of the search result.",
+      "dataset_id": "uuid-of-the-source-dataset",
+      "object_id": "uuid-of-the-source-object",
+      "similarity": "score (BM25 score, Cosine Similarity, or RRF score)"
     }
-    ```
-
-*   **Response Body (Success):**
-
-    ```json
-    {
-      "query_time": "retrieval time in seconds",
-      "results": [
-        {
-          "content": "The main text content of the search result.",
-          "dataset_id": "uuid-of-the-source-dataset",
-          "object_id": "uuid-of-the-source-object",
-          "similarity": "simialrity-score (higher the better)"
-        }
-      ]
-    }
-    ```
+  ]
+}
+```
 
 ### Health Check
 
 Verifies the operational status of the API and its dependencies.
 
-*   **Endpoint:** `GET /health`
-*   **Description:** Checks the availability of the search component and the existance of the index. Returns a `200 OK` if all systems are healthy.
-*   **Response Body (Success):**
+* **Endpoint:** `GET /health`
+* **Description:** Checks connectivity to the Database, Qdrant, and the TEI service.
+* **Response Body (Success):**
 
-    ```json
-    {
-      "status": "ok",
-      "message": "All dependencies are healthy."
-    }
-    ```
+```json
+{
+  "status": "ok",
+  "message": "All dependencies are healthy."
+}
+```

@@ -78,6 +78,16 @@
           "query": {
             "description": "The natural language query string.",
             "type": "string"
+          },
+          "search_mode": {
+            "default": "sparse",
+            "description": "The retrieval strategy to use.",
+            "enum": [
+              "sparse",
+              "dense",
+              "hybrid"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -162,7 +172,7 @@
   "paths": {
     "/health": {
       "get": {
-        "description": "Verifies the operational status of the API and its dependencies (Search Component, Database). Returns a 200 OK if all systems are healthy.",
+        "description": "Verifies the operational status of the API and its dependencies (Qdrant, TEI, Database). Returns a 200 OK if all systems are healthy.",
         "operationId": "health_check_health_get",
         "responses": {
           "200": {
