@@ -228,7 +228,7 @@
             "type": "object"
           },
           "source": {
-            "description": "The failing dependency: `OIDCProvider`, `Qdrant`, `TEI` or `SearchComponent`.",
+            "description": "The failing component: `SearchComponent`, `Qdrant`, `TEI` or `IngestionJobStore`.",
             "type": "string"
           },
           "statusCode": {
@@ -583,7 +583,7 @@
                 }
               }
             },
-            "description": "Failed Dependency - a downstream service (OIDC provider, Qdrant, TEI, or the search component itself) is unavailable or returned an error. The downstream status code is reported in `message.statusCode`."
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
           },
           "500": {
             "content": {
@@ -593,7 +593,7 @@
                 }
               }
             },
-            "description": "Internal Server Error - unexpected failure."
+            "description": "Internal Server Error - unexpected failure, including Qdrant or TEI failing during the search. The `error` text contains the underlying exception."
           }
         },
         "security": [
@@ -671,7 +671,7 @@
                 }
               }
             },
-            "description": "Failed Dependency - a downstream service (OIDC provider, Qdrant, TEI, or the search component itself) is unavailable or returned an error. The downstream status code is reported in `message.statusCode`."
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
           },
           "500": {
             "content": {
@@ -681,7 +681,7 @@
                 }
               }
             },
-            "description": "Internal Server Error - unexpected failure."
+            "description": "Internal Server Error - unexpected failure, including Qdrant failing during the deletion."
           }
         },
         "security": [
@@ -718,7 +718,7 @@
                 }
               }
             },
-            "description": "Failed Dependency - a downstream service (OIDC provider, Qdrant, TEI, or the search component itself) is unavailable or returned an error. The downstream status code is reported in `message.statusCode`."
+            "description": "Failed Dependency - Qdrant or TEI is unreachable, or the search component failed to initialize at startup. The failing component is named in `message.source`."
           }
         },
         "summary": "Health Check",
@@ -818,7 +818,7 @@
                 }
               }
             },
-            "description": "Failed Dependency - a downstream service (OIDC provider, Qdrant, TEI, or the search component itself) is unavailable or returned an error. The downstream status code is reported in `message.statusCode`."
+            "description": "Failed Dependency - the ingestion job store is unavailable. The failing component is named in `message.source`."
           }
         },
         "security": [
@@ -921,7 +921,10 @@
                 }
               }
             },
-            "description": "Failed Dependency - a downstream service (OIDC provider, Qdrant, TEI, or the search component itself) is unavailable or returned an error. The downstream status code is reported in `message.statusCode`."
+            "description": "Failed Dependency - the search component failed to initialize at startup, or the job record could not be saved. The failing component is named in `message.source`."
+          },
+          "500": {
+            "description": "Internal Server Error - Qdrant failed while checking whether the dataset is already indexed (plain-text body)."
           }
         },
         "security": [
@@ -999,7 +1002,7 @@
                 }
               }
             },
-            "description": "Failed Dependency - a downstream service (OIDC provider, Qdrant, TEI, or the search component itself) is unavailable or returned an error. The downstream status code is reported in `message.statusCode`."
+            "description": "Failed Dependency - the ingestion job store is unavailable. The failing component is named in `message.source`."
           }
         },
         "security": [
@@ -1076,10 +1079,10 @@
                 }
               }
             },
-            "description": "Failed Dependency - a downstream service (OIDC provider, Qdrant, TEI, or the search component itself) is unavailable or returned an error. The downstream status code is reported in `message.statusCode`."
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
           },
           "500": {
-            "description": "Internal Server Error - malformed analytical pattern or unexpected failure."
+            "description": "Internal Server Error - malformed analytical pattern, or an unexpected failure (including Qdrant or TEI failing during the search). Plain-text body for a malformed pattern."
           }
         },
         "security": [
@@ -1156,7 +1159,7 @@
                 }
               }
             },
-            "description": "Failed Dependency - a downstream service (OIDC provider, Qdrant, TEI, or the search component itself) is unavailable or returned an error. The downstream status code is reported in `message.statusCode`."
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
           },
           "500": {
             "content": {
@@ -1166,7 +1169,7 @@
                 }
               }
             },
-            "description": "Internal Server Error - unexpected failure."
+            "description": "Internal Server Error - unexpected failure, including Qdrant or TEI failing during the search. The `error` text contains the underlying exception."
           }
         },
         "security": [
