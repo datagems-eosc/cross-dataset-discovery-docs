@@ -240,7 +240,7 @@ Each file is handled according to its `original_format`:
 | `original_format` | How it is indexed | Extra file fields used |
 | :--- | :--- | :--- |
 | `csv`, `xlsx`, `xls` | One item per row, serialized as `column: value` text (numeric values are left out) | – |
-| `sql-db` | One item per table row (serialized as above), read from the database named `name` on one of the configured SQL servers | `name` (database), `tables[].name` (optional; defaults to all tables) |
+| `sql-db` | One item per table row (serialized as above), read from the database named `name` on one of the configured SQL servers. Tables larger than `SQL_DB_MAX_TABLE_MB` (default 512 MB) instead get one item per column, built from a sample of rows (see [Configuration](./configuration.md#ingestion)) | `name` (database), `tables[].name` (optional; defaults to all tables) |
 | `text`, `application/pdf` | One item per pre-computed chunk | `chunked_content` (a list of sections, each with a `chunks` list) |
 | `json`, `application/json` | Records split into token-based chunks; the title is prepended to each chunk | `content_fields` (default `["text"]`), `metadata_fields` (default: all other fields), `title_field` (default `"title"`) |
 | `docx`, `pptx`, `ipynb` | Text split into token-based chunks | – |
