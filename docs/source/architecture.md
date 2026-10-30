@@ -4,6 +4,40 @@ The Cross-Dataset Discovery Service is part of the DataGEMS ecosystem. It indexe
 
 ## Core Components
 
+```mermaid
+flowchart TB
+    client["Client<br/>(user or DataGEMS service)"]
+    api["Cross-Dataset Discovery API<br/>FastAPI · BM25 via FastEmbed"]
+
+    subgraph sec["Security"]
+        oidc["OIDC provider<br/>(Keycloak)"]
+        gw["DataGEMS Gateway"]
+    end
+
+    subgraph search["Search infrastructure"]
+        tei["TEI<br/>BAAI/bge-m3 embeddings"]
+        qdrant[("Qdrant<br/>index + ingestion jobs")]
+    end
+
+    llm["LLM providers<br/>SCAYLE, Bedrock fallback"]
+
+    subgraph src["Dataset sources (read-only)"]
+        storage[("Dataset storage<br/>profiles and files")]
+        sql[("Dataset database servers<br/>(PostgreSQL)")]
+    end
+
+    client -->|"REST + JWT"| api
+    api -->|"token validation"| oidc
+    api -->|"dataset grants"| gw
+    api -->|"dense embeddings"| tei
+    api -->|"search, upload, delete"| qdrant
+    api -.->|"LLM-assisted steps"| llm
+    api -.->|"ingestion"| storage
+    api -.->|"ingestion"| sql
+```
+
+*The API and the services it uses, grouped by role. TEI is deployed together with the API; the other services are shared or external. Dotted lines are used only by some endpoints.*
+
 1. **FastAPI Application (API Pod):** The entry point of the service. It authenticates and authorizes requests, runs searches, and runs dataset ingestion as background jobs. It computes sparse (BM25) vectors locally with `FastEmbed` (CPU).
 
 2. **Vector Database (Qdrant):** Stores the dense and sparse vectors of every indexed item, together with its text and metadata. It performs the actual retrieval: nearest-neighbour search for dense vectors, an inverted index for sparse vectors, and Reciprocal Rank Fusion (RRF) for hybrid search. It also stores the ingestion job records. See [Datastores](./datastore.md).
@@ -19,6 +53,39 @@ The Cross-Dataset Discovery Service is part of the DataGEMS ecosystem. It indexe
 ## Search Flow
 
 A `POST /search/` request goes through these steps:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant O as OIDC provider
+    participant G as DataGEMS Gateway
+    participant T as TEI
+    participant Q as Qdrant
+
+    C->>A: POST /search/ (JWT, query, search_mode)
+    opt First request of the process
+        A->>O: Fetch public keys (then cached)
+    end
+    A->>A: Validate JWT and roles
+    opt Caller has no privileged role
+        A->>G: Query dg_ds-browse grants
+        G-->>A: Authorized dataset IDs
+    end
+    opt sparse or hybrid
+        A->>A: Compute BM25 sparse vector
+    end
+    opt dense or hybrid
+        A->>T: Embed query
+        T-->>A: Dense vector
+    end
+    A->>Q: Query with vector(s) and dataset_id filter
+    Q-->>A: Top-k points (RRF in hybrid mode)
+    A->>A: Drop results from unauthorized datasets
+    A-->>C: 200 results + query_time
+```
+
+*A POST /search/ request.*
 
 1. **Auth:** The Security Layer validates the JWT and checks the caller's roles. Unless the caller has a privileged role, it fetches the IDs of the datasets the caller may browse from the DataGEMS Gateway.
 2. **Filter:** If the request has `dataset_ids`, they are intersected with the authorized datasets and passed to Qdrant as a `dataset_id` filter.
@@ -44,6 +111,50 @@ Each LLM call tries the configured providers in order. If all of them fail, the 
 ## Ingestion Flow
 
 A `POST /ingest/` request goes through these steps:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant J as Background job
+    participant DS as Dataset sources
+    participant T as TEI
+    participant Q as Qdrant
+
+    C->>A: POST /ingest/?path_to_profile=...
+    A->>DS: Read profile
+    A->>A: Check dg_ds-edit grant (via Gateway)
+    A->>Q: Is the dataset already indexed?
+    alt Indexed and replace=false
+        A-->>C: 200 status: skipped
+    else Not indexed, or replace=true
+        A->>Q: Save job record (pending)
+        A-->>C: 202 job_id
+        A-)J: Start background job
+        par Background job
+            J->>Q: Job record: running
+            opt replace=true
+                J->>Q: Delete the dataset's points
+            end
+            loop Stream items in batches
+                J->>DS: Read files / SQL tables
+                J->>T: Embed batch (dense)
+                J->>J: Compute BM25 sparse vectors
+                J->>Q: Upload points
+            end
+            J->>Q: Rebuild vector index, apply quantization
+            J->>Q: Job record: completed or failed
+        and Client polls
+            loop Until completed or failed
+                C->>A: GET /ingest/{job_id}
+                A->>Q: Read job record
+                A-->>C: Job status
+            end
+        end
+    end
+```
+
+*A POST /ingest/ request and the background job it starts.*
 
 1. **Read profile:** The API reads the dataset profile from the dataset storage. The caller must hold a `dg_ds-edit` grant on the profile's dataset (or a privileged role).
 2. **Check existing data:** If the dataset already has points in Qdrant and `replace` is false, the request returns `skipped`.

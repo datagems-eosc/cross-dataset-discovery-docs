@@ -271,6 +271,21 @@ Files with any other format are skipped (logged as a warning).
 }
 ```
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> pending: POST /ingest/
+    pending --> running: job starts
+    running --> completed: success
+    running --> failed: error
+    pending --> interrupted: service restart
+    running --> interrupted: service restart
+    note right of failed: Fix the cause, then re-ingest with replace=true
+    note right of interrupted: Re-ingest with replace=true
+```
+
+*Ingestion job statuses.*
+
 * `status`: one of:
     * `pending`: scheduled, not started yet.
     * `running`: in progress.
