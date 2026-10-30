@@ -10,7 +10,8 @@ This project uses GitHub Actions to automate builds, code analysis, security sca
 | Code Metrics (On-Demand) | code | Manual | Radon complexity and maintainability report |
 | Test Scenario (On-Demand) | code | Manual | API tests against the deployed service |
 | Deploy Docs (On-Demand) | docs | Manual | Publish this documentation site |
-| Deploy to Dev (On-Demand) | deployment | Manual | Apply the Kubernetes manifests (see [Deployment](./deployment.md#4-apply)) |
+| Deploy to Dev (On-Demand) | deployment (dev) | Manual | Apply the Kubernetes manifests to the development cluster (see [Deployment](./deployment.md#4-apply)) |
+| Deploy to Prod (On-Demand) | deployment (prod) | Manual | Apply the Kubernetes manifests to the production cluster (see [Deployment](./deployment.md#4-apply)) |
 
 ## Dockerfile
 

@@ -15,7 +15,7 @@ The API also depends on these external services:
 - **OIDC provider** (Keycloak), to validate tokens.
 - **DataGEMS Gateway**, to look up dataset grants.
 - **Dataset database servers** (PostgreSQL), to read `sql-db` datasets during ingestion.
-- **Amazon Bedrock** (optional), for the LLM steps of `POST /corpus-analysis-search/`.
+- **LLM providers** (SCAYLE and/or Amazon Bedrock), for the LLM steps of `POST /corpus-analysis-search/` (see [Configuration](./configuration.md#llm-corpus-analysis-search)).
 
 ## Docker Image
 
@@ -62,19 +62,19 @@ Pushing a Git tag that matches `v*` (e.g. `v1.17.2`) builds the image and publis
 
 ## Kubernetes Setup
 
-The manifests are kept in the deployment repository. For the API they define:
+The manifests are kept in a deployment repository, one per environment (development and production). For the API they define:
 
 - **ConfigMap:** the non-secret configuration (OIDC, Gateway, Qdrant, TEI, ingestion settings).
-- **Secret:** synced from the secret store. Holds the Bedrock API key and the database credentials (see [Configuration](./configuration.md#secrets)).
+- **Secret:** synced from the secret store. Holds the LLM provider tokens and the database credentials (see [Configuration](./configuration.md#secrets)).
 - **Deployment:**
     - The image tag to run.
-    - The environment variables, taken from the ConfigMap and the Secret. `ROOT_PATH` is set to the ingress path prefix.
+    - The environment variables, taken from the ConfigMap and the Secret. `ROOT_PATH` is set to the path prefix the API is served under.
     - A volume with the dataset storage. Dataset profiles and the files they reference are read from it, so `path_to_profile` and the profiles' `source_file` paths must point inside this mount.
     - The `gunicorn` command, overridden to use a longer worker `--timeout`.
     - The probes: liveness on `GET /`, readiness on `GET /health`.
     - Resource requests and limits. Ingestion is the most memory-hungry operation; if the pod runs out of memory during ingestion, lower `INGESTION_BATCH_SIZE`.
 - **Service:** exposes port `8000` inside the cluster.
-- **Ingress:** publishes the API under a path prefix on the DataGEMS host and strips the prefix before forwarding. `ROOT_PATH` must match that prefix.
+- **Routing:** how requests reach the Service depends on the platform setup of each environment. If the API is served under a path prefix, `ROOT_PATH` must match it.
 
 TEI has its own Deployment, Service and persistent volume (for the model cache), with separate CPU and GPU variants.
 
@@ -91,7 +91,7 @@ More replicas or workers would break that assumption.
 
 ### Prerequisites
 
-- Access to the code repository and the deployment repository.
+- Access to the code repository and to the deployment repository of the target environment.
 - `kubectl` configured for the target cluster (including any required VPN).
 
 Verify access by listing the pods in the service's namespace:
@@ -127,13 +127,7 @@ If the release needs new or changed settings, update the ConfigMap (or the secre
 
 ### 4. Apply
 
-Either apply the manifests manually:
-
-```bash
-kubectl apply -f deployment/
-```
-
-or run the deployment repository's **Deploy to Dev (On-Demand)** workflow from its Actions tab. The workflow applies the manifests as committed, so step 3 is still required.
+Run the deployment repository's on-demand deploy workflow (**Deploy to Dev** or **Deploy to Prod**) from its **Actions** tab, entering the image tag. Make sure the tag is also committed in the manifest (step 3), so the repository matches what is running.
 
 ### 5. Monitor the Rollout
 

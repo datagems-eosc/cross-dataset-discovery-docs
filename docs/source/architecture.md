@@ -12,7 +12,7 @@ The Cross-Dataset Discovery Service is part of the DataGEMS ecosystem. It indexe
 
 4. **Security Layer:** Validates OIDC tokens and queries the DataGEMS Gateway for the caller's dataset grants. See [Security](./security.md).
 
-5. **LLM (Amazon Bedrock):** Used only by `POST /corpus-analysis-search/`, to extract the text request from a question and to score results for relevance.
+5. **LLM:** Used only by `POST /corpus-analysis-search/`, to extract the text request from a question and to score results for relevance. By default the model is served by SCAYLE (OpenAI-compatible API), with Amazon Bedrock as a fallback if a SCAYLE call fails. See [Configuration](./configuration.md#llm-corpus-analysis-search).
 
 6. **Dataset sources (read-only):** During ingestion the API reads dataset profiles and files from mounted dataset storage, and `sql-db` datasets from the DataGEMS database servers.
 
@@ -39,7 +39,7 @@ A `POST /search/` request goes through these steps:
 - Before step 3, the LLM rewrites the question into a text request, which is what gets searched.
 - After step 4, the LLM scores each result and drops those below the threshold.
 
-If the LLM fails, the original question and the unscored results are used.
+Each LLM call tries the configured providers in order. If all of them fail, the original question and the unscored results are used.
 
 ## Ingestion Flow
 

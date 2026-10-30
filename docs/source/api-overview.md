@@ -139,7 +139,7 @@ A pattern without a `CDD_Operator` node, without a `query`, or with invalid opti
     2. The index is searched with the extracted request.
     3. The LLM scores each result for relevance and drops results that score below 3. Fewer than `k` results may therefore be returned.
 
-    If either LLM step fails, the service uses the original question and the unscored results instead of failing the request. Dataset access filtering works the same as in `POST /search/`.
+    Each LLM step tries the configured LLM providers in order (see [Configuration](./configuration.md#llm-corpus-analysis-search)). If a step still fails, the service uses the original question and the unscored results instead of failing the request. Dataset access filtering works the same as in `POST /search/`.
 * **Request Body:**
 
 ```json

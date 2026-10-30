@@ -29,7 +29,9 @@ TEI_URL="http://localhost:8080"
 # Ingestion from SQL datasets (only needed to ingest sql-db files)
 SQL_DB_BASE_URLS="postgresql://user:password@localhost:5432"
 
-# LLM for /corpus-analysis-search/ (optional)
+# LLM for /corpus-analysis-search/
+LLM_PROVIDER="scayle,bedrock"
+SCAYLE_TOKEN="your-scayle-token"
 AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key"
 ```
 
@@ -68,9 +70,23 @@ The *Default* column is the value used when the variable is not set.
 
 ### LLM (Corpus Analysis Search)
 
+`POST /corpus-analysis-search/` uses an LLM, which can come from two providers:
+
+- **`scayle`:** an OpenAI-compatible endpoint hosted by SCAYLE;
+- **`bedrock`:** Amazon Bedrock.
+
+`LLM_PROVIDER` lists the providers in order of preference. Each LLM call goes to the first provider; if that call fails, the next provider is tried, and so on. If all providers fail, the endpoint falls back to a plain search (see [API Overview](./api-overview.md#corpus-analysis-search)).
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `AWS_BEARER_TOKEN_BEDROCK` | Amazon Bedrock API key, used by `POST /corpus-analysis-search/`. Without it the LLM steps fail and the endpoint falls back to a plain search (see [API Overview](./api-overview.md#corpus-analysis-search)). | not set |
+| `LLM_PROVIDER` | Comma-separated list of LLM providers (`scayle`, `bedrock`), in order of preference. | `scayle,bedrock` |
+| `SCAYLE_BASE_URL` | Base URL of the SCAYLE LLM service. | `https://chat.scayle.es` |
+| `SCAYLE_TOKEN` | API token for the SCAYLE LLM service, used by the `scayle` provider. | not set |
+| `SCAYLE_MODEL` | Model to use on SCAYLE. | `qwen3.8-flash-next` |
+| `SCAYLE_VERIFY_TLS` | Whether to verify the SCAYLE service's TLS certificate (`true` / `false`). | `false` |
+| `SCAYLE_TIMEOUT` | Timeout, in seconds, for SCAYLE requests. | `120` |
+| `SCAYLE_CONNECT_TIMEOUT` | Timeout, in seconds, for connecting to SCAYLE. Kept short so an unreachable SCAYLE service quickly falls back to the next provider. | `5` |
+| `BEDROCK_MODEL` | Model ID to use on Amazon Bedrock. | `eu.anthropic.claude-haiku-5-5` |
+| `AWS_BEARER_TOKEN_BEDROCK` | Amazon Bedrock API key. Without it, Bedrock calls fail. | not set |
 
 ### Runtime
 
@@ -91,7 +107,7 @@ These are set in the code and cannot be changed through configuration:
 | Dense embedding model | Whatever model the TEI service serves. It must be `BAAI/bge-m3` (1024 dimensions) to match the indexed collection. |
 | Sparse embedding model | FastEmbed `Qdrant/bm25`, computed inside the API. |
 | Vector quantization | Binary quantization, kept in RAM. |
-| LLM | `anthropic.claude-3-haiku-20240307-v1:0` on Amazon Bedrock, region `eu-central-1`, temperature `0`. |
+| LLM | Temperature `0`. Amazon Bedrock is used in region `eu-central-1`. When a later provider is configured as fallback, SCAYLE requests are not retried, so the fallback takes over at once; otherwise they are retried twice. |
 | LLM relevance threshold | Results scored below `3` are dropped by `POST /corpus-analysis-search/`. |
 
 ## Secrets
@@ -100,6 +116,7 @@ These values are confidential. In Kubernetes they are kept in a secret store and
 
 | Variable | Used for |
 | :--- | :--- |
+| `SCAYLE_TOKEN` | SCAYLE LLM service token. |
 | `AWS_BEARER_TOKEN_BEDROCK` | Amazon Bedrock API key (LLM). |
 | `SQL_DB_BASE_URLS` | Contains the database credentials. In Kubernetes it is assembled in the Deployment from separate secret values for the user, password, host and port. |
 
