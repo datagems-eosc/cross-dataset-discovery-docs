@@ -44,6 +44,10 @@ The service's functionality is validated through API-level integration tests usi
     -   **Perform Search - Valid Request:** Executes a valid search against the `/search/` endpoint and asserts that the response is successful (`200 OK`) and has the correct structure.
     -   **Perform Search - Bad Request:** Sends a request with an invalid payload (an empty `dataset_ids` list) and asserts that the API correctly rejects it with a `400 Bad Request` status.
 
+    If the health check fails, the remaining requests are skipped.
+
+-   **Coverage:** The suite covers only `GET /health` and `POST /search/`. The other endpoints (`POST /search-ap/`, `POST /corpus-analysis-search/`, the ingestion endpoints, and `DELETE /dataset/{dataset_id}`) are not tested automatically. The repository has no unit tests.
+
 ### How to Run Tests
 
 The API tests are designed to be run automatically via a GitHub Actions workflow.
@@ -53,7 +57,7 @@ The API tests are designed to be run automatically via a GitHub Actions workflow
 -   **Process:**
     1.  Navigate to the "Actions" tab and select the "Test Scenario (On-Demand)" workflow.
     2.  Click "Run workflow". You will be prompted to enter a `tag` (e.g., `main` or a specific version like `v1.0.0`) to test against.
-    3.  The workflow checks out the specified version of the code.
+    3.  The workflow checks out the specified version of the code, which determines the version of the test collection that is run. The tests are always run against the **deployed** service, not against a build of that version.
     4.  It then uses the official `postman/newman` Docker image to execute the test collection.
     5.  All necessary environment variables (API base URL, credentials, etc.) are securely injected into the test run from the repository's secrets.
 
