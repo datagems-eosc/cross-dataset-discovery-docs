@@ -1,10 +1,43 @@
 {
   "components": {
     "schemas": {
+      "API_CorpusSearchResult": {
+        "properties": {
+          "content": {
+            "description": "The text of the matched item.",
+            "type": "string"
+          },
+          "dataset_id": {
+            "description": "The UUID of the source dataset.",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "description": "The indexed payload of the item (e.g. `dataset_id`, `file_object_id`, `original_filename`, plus loader-specific fields).",
+            "type": "object"
+          },
+          "object_id": {
+            "description": "The UUID of the source file object within the dataset, or `dataset_id` for dataset-level items.",
+            "type": "string"
+          },
+          "similarity": {
+            "description": "The relevance score from retrieval.",
+            "format": "float",
+            "type": "number"
+          }
+        },
+        "required": [
+          "content",
+          "dataset_id",
+          "object_id",
+          "similarity"
+        ],
+        "type": "object"
+      },
       "API_SearchResult": {
         "properties": {
           "content": {
-            "description": "The main text content of the search result.",
+            "description": "The text of the matched item.",
             "type": "string"
           },
           "dataset_id": {
@@ -12,13 +45,174 @@
             "type": "string"
           },
           "object_id": {
-            "description": "The UUID of the source object within the dataset.",
+            "description": "The UUID of the source file object within the dataset. For dataset-level items (e.g. the dataset description) this equals `dataset_id`.",
             "type": "string"
           },
           "similarity": {
-            "description": "The relevance score of the result.",
+            "description": "The relevance score (BM25 score, cosine similarity or RRF score, depending on `search_mode`).",
             "format": "float",
             "type": "number"
+          }
+        },
+        "required": [
+          "content",
+          "dataset_id",
+          "object_id",
+          "similarity"
+        ],
+        "type": "object"
+      },
+      "AnalyticalPattern": {
+        "additionalProperties": true,
+        "description": "A DataGEMS analytical pattern. It must contain a node labelled `CDD_Operator` whose `properties` hold the search arguments (`query` required; `k`, `dataset_ids`, `search_mode` optional, same meaning as in `SearchRequest`).",
+        "properties": {
+          "ap": {
+            "properties": {
+              "edges": {
+                "items": {
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "labels": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "to": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "nodes": {
+                "items": {
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "labels": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "properties": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "nodes",
+              "edges"
+            ],
+            "type": "object"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "ap"
+        ],
+        "type": "object"
+      },
+      "CorpusSearchRequest": {
+        "properties": {
+          "dataset_ids": {
+            "description": "Dataset UUIDs to restrict the search to. Intersected with the datasets the caller may browse. Must not be an empty list.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "k": {
+            "default": 50,
+            "deprecated": true,
+            "description": "Deprecated. Number of candidates to retrieve before LLM reranking; fewer results may be returned.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "query": {
+            "description": "The natural language question. An LLM extracts the text request from it before searching.",
+            "type": "string"
+          },
+          "search_mode": {
+            "default": "dense",
+            "deprecated": true,
+            "description": "Deprecated. The retrieval strategy; the API will choose it automatically in a future version.",
+            "enum": [
+              "sparse",
+              "dense",
+              "hybrid"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "CorpusSearchResponse": {
+        "properties": {
+          "query_time": {
+            "description": "The time taken to process the query, in milliseconds.",
+            "format": "float",
+            "type": "number"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/API_CorpusSearchResult"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "query_time",
+          "results"
+        ],
+        "type": "object"
+      },
+      "DeleteDatasetResponse": {
+        "properties": {
+          "dataset_id": {
+            "description": "The deleted dataset.",
+            "type": "string"
+          },
+          "deleted_count": {
+            "description": "Number of indexed points removed.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "deleted_count"
+        ],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "code": {
+            "description": "The HTTP status code.",
+            "example": 403,
+            "type": "integer"
+          },
+          "error": {
+            "description": "A human-readable error message.",
+            "example": "User does not have permission to ingest this dataset.",
+            "type": "string"
           }
         },
         "type": "object"
@@ -34,9 +228,11 @@
             "type": "object"
           },
           "source": {
+            "description": "The failing component: `SearchComponent`, `Qdrant`, `TEI` or `IngestionJobStore`.",
             "type": "string"
           },
           "statusCode": {
+            "description": "The status code reported by (or for) the downstream service.",
             "type": "integer"
           }
         },
@@ -58,10 +254,125 @@
         },
         "type": "object"
       },
+      "IngestResponse": {
+        "properties": {
+          "dataset_id": {
+            "description": "The `@id` of the dataset in the profile.",
+            "type": "string"
+          },
+          "job_id": {
+            "description": "The ingestion job id to poll, or `null` when the ingestion was skipped.",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "description": "`pending` when a job was scheduled, `skipped` when the dataset is already indexed and `replace` is false.",
+            "enum": [
+              "pending",
+              "skipped"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "dataset_id"
+        ],
+        "type": "object"
+      },
+      "IngestionJob": {
+        "properties": {
+          "dataset_id": {
+            "description": "The dataset being ingested.",
+            "type": "string"
+          },
+          "deleted_count": {
+            "description": "Number of existing points deleted (set when `replace` is true).",
+            "nullable": true,
+            "type": "integer"
+          },
+          "error": {
+            "description": "The failure reason (set when the job fails or is interrupted).",
+            "nullable": true,
+            "type": "string"
+          },
+          "finished_at": {
+            "description": "UTC timestamp when the job completed, failed or was interrupted.",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "items_indexed": {
+            "description": "Number of points this job wrote to Qdrant (set on completion). Normally equal to `items_submitted`.",
+            "nullable": true,
+            "type": "integer"
+          },
+          "items_submitted": {
+            "description": "Number of items sent for embedding (set on completion).",
+            "nullable": true,
+            "type": "integer"
+          },
+          "job_id": {
+            "description": "The ingestion job id.",
+            "type": "string"
+          },
+          "points_in_qdrant": {
+            "description": "Total number of the dataset's points in Qdrant after the job (set on completion). After a fresh or `replace=true` ingestion it should equal `items_indexed`.",
+            "nullable": true,
+            "type": "integer"
+          },
+          "profile_path": {
+            "description": "The profile path the job was started with.",
+            "type": "string"
+          },
+          "replace": {
+            "description": "Whether existing points for the dataset were deleted first.",
+            "type": "boolean"
+          },
+          "requested_by": {
+            "description": "The `sub` claim of the caller that started the job.",
+            "nullable": true,
+            "type": "string"
+          },
+          "started_at": {
+            "description": "UTC timestamp when the job was created.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "The job state. `interrupted` means the service restarted before the job finished; the dataset may be partially indexed and should be re-ingested with `replace=true`.",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "interrupted"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "IngestionJobList": {
+        "properties": {
+          "jobs": {
+            "description": "The matching jobs, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/IngestionJob"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "jobs"
+        ],
+        "type": "object"
+      },
       "SearchRequest": {
         "properties": {
           "dataset_ids": {
-            "description": "A list of dataset UUIDs to restrict the search to.",
+            "description": "Dataset UUIDs to restrict the search to. Intersected with the datasets the caller may browse. Must not be an empty list.",
             "items": {
               "type": "string"
             },
@@ -81,7 +392,7 @@
           },
           "search_mode": {
             "default": "sparse",
-            "description": "The retrieval strategy to use.",
+            "description": "The retrieval strategy: `sparse` (BM25), `dense` (bge-m3 vectors) or `hybrid` (both, fused with Reciprocal Rank Fusion).",
             "enum": [
               "sparse",
               "dense",
@@ -98,7 +409,7 @@
       "SearchResponse": {
         "properties": {
           "query_time": {
-            "description": "The time taken to process the query in milliseconds.",
+            "description": "The time taken to process the query, in milliseconds.",
             "format": "float",
             "type": "number"
           },
@@ -109,11 +420,28 @@
             "type": "array"
           }
         },
+        "required": [
+          "query_time",
+          "results"
+        ],
+        "type": "object"
+      },
+      "StatusResponse": {
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "example": "ok",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "ValidationErrorDetail": {
         "properties": {
           "Key": {
+            "description": "Location of the invalid field, e.g. `body.dataset_ids`.",
             "type": "string"
           },
           "Value": {
@@ -159,7 +487,7 @@
       "name": "DataGEMS helpdesk",
       "url": "https://datagems.eu/contact-us/"
     },
-    "description": "The Cross-Dataset Discovery Service provides a secure API for performing natural language search queries across a pre-indexed collection of datasets.",
+    "description": "The Cross-Dataset Discovery Service provides a secure API for performing natural language search queries across a pre-indexed collection of datasets, and for adding datasets to or removing them from that index.",
     "license": {
       "name": "EUPL-1.2 license",
       "url": "https://interoperable-europe.ec.europa.eu/sites/default/files/custom-page/attachment/2020-03/EUPL-1.2%20EN.txt"
@@ -170,30 +498,82 @@
   },
   "openapi": "3.0.3",
   "paths": {
-    "/health": {
+    "/": {
       "get": {
-        "description": "Verifies the operational status of the API and its dependencies (Qdrant, TEI, Database). Returns a 200 OK if all systems are healthy.",
-        "operationId": "health_check_health_get",
+        "description": "Returns a static OK response without checking dependencies. Used as the Kubernetes liveness probe. No authentication required.",
+        "operationId": "read_root__get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {
-                    "message": {
-                      "example": "All dependencies are healthy.",
-                      "type": "string"
-                    },
-                    "status": {
-                      "example": "ok",
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "The service process is running."
+          }
+        },
+        "summary": "Liveness",
+        "tags": [
+          "Monitoring"
+        ]
+      }
+    },
+    "/corpus-analysis-search/": {
+      "post": {
+        "description": "Search for text passages answering a natural language question, with LLM assistance. An LLM first extracts the text request from the question (time-period, location and language constraints are extracted but not yet applied). The index is searched with that request, and the LLM then scores each candidate and drops those scoring below 3, so fewer than `k` results may be returned. If either LLM step fails, the original question and the unreranked results are used instead. Dataset access filtering is the same as `POST /search/`. Results also carry the item `metadata`.",
+        "operationId": "corpus_search_corpus_analysis_search__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorpusSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusSearchResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error - the request body or parameters are malformed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - the token lacks the `user` / `dg_user` role (or a privileged role)."
           },
           "424": {
             "content": {
@@ -203,7 +583,142 @@
                 }
               }
             },
-            "description": "Failed Dependency"
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error - unexpected failure, including Qdrant or TEI failing during the search. The `error` text contains the underlying exception."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Corpus Analysis Search",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/dataset/{dataset_id}": {
+      "delete": {
+        "description": "Removes all indexed points of a dataset. The caller needs a `dg_ds-delete` grant on the dataset or a privileged role. The source data is not touched.",
+        "operationId": "delete_dataset_dataset__dataset_id__delete",
+        "parameters": [
+          {
+            "description": "The dataset UUID.",
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDatasetResponse"
+                }
+              }
+            },
+            "description": "The dataset was removed from the index."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - missing required role, or no `dg_ds-delete` grant on this dataset."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The dataset is not in the index."
+          },
+          "424": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedDependencyResponse"
+                }
+              }
+            },
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error - unexpected failure, including Qdrant failing during the deletion."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Delete a Dataset from the Index",
+        "tags": [
+          "Ingestion"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Checks that the search component is initialized and that Qdrant and the TEI embedding service are reachable. Used as the Kubernetes readiness probe. No authentication required.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "All dependencies are healthy."
+          },
+          "424": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedDependencyResponse"
+                }
+              }
+            },
+            "description": "Failed Dependency - Qdrant or TEI is unreachable, or the search component failed to initialize at startup. The failing component is named in `message.source`."
           }
         },
         "summary": "Health Check",
@@ -212,9 +727,378 @@
         ]
       }
     },
+    "/ingest/": {
+      "get": {
+        "description": "Lists ingestion jobs, newest first. Callers with a privileged role (`dg_admin`, `dg_system`, `dg_dataset-curator`) can list all jobs. Other callers must pass `dataset_id` and hold a `dg_ds-edit` grant on that dataset.",
+        "operationId": "list_ingestion_jobs_ingest__get",
+        "parameters": [
+          {
+            "description": "Only return jobs with this status.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "running",
+                "completed",
+                "failed",
+                "interrupted"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only return jobs for this dataset. Required for callers without a privileged role.",
+            "in": "query",
+            "name": "dataset_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Maximum number of jobs to return.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestionJobList"
+                }
+              }
+            },
+            "description": "The matching jobs."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error - the request body or parameters are malformed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - missing required role; or no `dataset_id` given without a privileged role; or no `dg_ds-edit` grant on `dataset_id`."
+          },
+          "424": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedDependencyResponse"
+                }
+              }
+            },
+            "description": "Failed Dependency - the ingestion job store is unavailable. The failing component is named in `message.source`."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "List Ingestion Jobs",
+        "tags": [
+          "Ingestion"
+        ]
+      },
+      "post": {
+        "description": "Indexes a dataset described by a dataset profile (JSON) that the service reads from `path_to_profile` (a path on the service's mounted storage, e.g. `/s3/...`). The caller needs a `dg_ds-edit` grant on the profile's `@id` or a privileged role. Ingestion runs as a background job: the endpoint returns `202` with a `job_id` to poll via `GET /ingest/{job_id}`. The job record is saved before the job starts; if it cannot be saved, the request fails with `424`. If the dataset is already indexed and `replace` is false, nothing is done and `200` with status `skipped` is returned.",
+        "operationId": "ingest_dataset_ingest__post",
+        "parameters": [
+          {
+            "description": "Path to the dataset profile JSON, as seen by the service.",
+            "in": "query",
+            "name": "path_to_profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Delete the dataset's existing indexed points and rebuild it from scratch.",
+            "in": "query",
+            "name": "replace",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            },
+            "description": "The dataset is already indexed; ingestion skipped."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            },
+            "description": "Ingestion job scheduled."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ValidationErrorResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "The profile could not be read or has no `@id`, or a parameter is invalid."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - missing required role, or no `dg_ds-edit` grant on this dataset."
+          },
+          "424": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedDependencyResponse"
+                }
+              }
+            },
+            "description": "Failed Dependency - the search component failed to initialize at startup, or the job record could not be saved. The failing component is named in `message.source`."
+          },
+          "500": {
+            "description": "Internal Server Error - Qdrant failed while checking whether the dataset is already indexed (plain-text body)."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Ingest a Dataset",
+        "tags": [
+          "Ingestion"
+        ]
+      }
+    },
+    "/ingest/{job_id}": {
+      "get": {
+        "description": "Returns the state of an ingestion job. Requires the same `dg_ds-edit` grant (or privileged role) as starting it. Job records are stored in Qdrant and survive service restarts.",
+        "operationId": "get_ingestion_status_ingest__job_id__get",
+        "parameters": [
+          {
+            "description": "The `job_id` returned by `POST /ingest/`.",
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestionJob"
+                }
+              }
+            },
+            "description": "The ingestion job."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - missing required role, or no `dg_ds-edit` grant on the job's dataset."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No job with this id."
+          },
+          "424": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedDependencyResponse"
+                }
+              }
+            },
+            "description": "Failed Dependency - the ingestion job store is unavailable. The failing component is named in `message.source`."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Get Ingestion Job Status",
+        "tags": [
+          "Ingestion"
+        ]
+      }
+    },
+    "/search-ap/": {
+      "post": {
+        "description": "Same search as `POST /search/`, but the request and response are DataGEMS analytical patterns. The search arguments are read from the `properties` of the node labelled `CDD_Operator`. In the response, any nodes previously connected as outputs of the operator are removed; one `sc:Dataset` node is added per result dataset and one `cr:FileObject` node per result object, with an `output` edge from the operator and a `distribution` edge from the dataset to each object. The full search response is merged into the pattern's `metadata`. A pattern without a `CDD_Operator` node, without `query`, or with invalid optional arguments results in a 500 error.",
+        "operationId": "perform_search_from_ap_search_ap__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticalPattern"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticalPattern"
+                }
+              }
+            },
+            "description": "The input analytical pattern, updated with the search results."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "Validation Error - the request body or parameters are malformed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - the token lacks the `user` / `dg_user` role (or a privileged role)."
+          },
+          "424": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedDependencyResponse"
+                }
+              }
+            },
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
+          },
+          "500": {
+            "description": "Internal Server Error - malformed analytical pattern, or an unexpected failure (including Qdrant or TEI failing during the search). Plain-text body for a malformed pattern."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Search via an Analytical Pattern",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
     "/search/": {
       "post": {
-        "description": "Submits a natural language query and returns a ranked list of relevant results. The search can be optionally filtered to a specific set of datasets. Results are always filtered based on the user's access permissions.",
+        "description": "Submits a natural language query and returns a ranked list of relevant results. The search can be restricted to `dataset_ids`; this list is intersected with the datasets the caller holds a `dg_ds-browse` grant on, and results from any other dataset are always dropped. Callers with a privileged role (`dg_admin`, `dg_system`, `dg_dataset-curator`) are not filtered. If none of the requested datasets are permitted, an empty result list is returned.",
         "operationId": "perform_search_search__post",
         "requestBody": {
           "content": {
@@ -245,13 +1129,27 @@
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Validation Error - the request body or parameters are malformed."
           },
           "401": {
-            "description": "Unauthorized - Invalid Token"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
           },
           "403": {
-            "description": "Forbidden - Insufficient Permissions"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - the token lacks the `user` / `dg_user` role (or a privileged role)."
           },
           "424": {
             "content": {
@@ -261,7 +1159,17 @@
                 }
               }
             },
-            "description": "Failed Dependency"
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error - unexpected failure, including Qdrant or TEI failing during the search. The `error` text contains the underlying exception."
           }
         },
         "security": [
@@ -286,6 +1194,10 @@
     {
       "description": "Endpoints for performing search operations.",
       "name": "Search"
+    },
+    {
+      "description": "Endpoints for adding datasets to and removing them from the search index.",
+      "name": "Ingestion"
     },
     {
       "description": "Endpoints for monitoring the service health.",
