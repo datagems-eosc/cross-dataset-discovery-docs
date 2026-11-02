@@ -1,75 +1,94 @@
 # Automations
 
-This project leverages GitHub Actions to automate builds, code analysis, security scanning, and documentation deployment. The following sections detail the specific workflows configured for this repository.
+This project uses GitHub Actions to automate builds, code analysis, security scanning, testing, and documentation deployment. Apart from image publishing, which runs on every version tag, all workflows are started manually from the repository's **Actions** tab (`workflow_dispatch`).
+
+| Workflow | Repository | Trigger | Purpose |
+| :--- | :--- | :--- | :--- |
+| Build and Push Search API Docker Image | code | Push of a `v*` tag | Build and publish the Docker image |
+| Vulnerability Scan (On-Demand) | code | Manual | Trivy scan of the repository configuration and a published image |
+| CodeQL Scan (On-Demand) | code | Manual | Static code analysis |
+| Code Metrics (On-Demand) | code | Manual | Radon complexity and maintainability report |
+| Test Scenario (On-Demand) | code | Manual | API tests against the deployed service |
+| Deploy Docs (On-Demand) | docs | Manual | Publish this documentation site |
+| Deploy to Dev (On-Demand) | deployment (dev) | Manual | Apply the Kubernetes manifests to the development cluster (see [Deployment](./deployment.md#4-apply)) |
+| Deploy to Prod (On-Demand) | deployment (prod) | Manual | Apply the Kubernetes manifests to the production cluster (see [Deployment](./deployment.md#4-apply)) |
 
 ## Dockerfile
 
-The creation of a production-ready container image is fully automated by the `Dockerfile` in the root of the repository. This build process ensures a consistent environment for the application.
+The production container image is built by the `Dockerfile` in the root of the code repository, in two stages:
 
--   **Stage 1 (Builder):** This stage prepares the environment by installing all necessary build-time dependencies, including OpenJDK (for the search library) and the full set of Python packages.
--   **Stage 2 (Final):** This stage constructs the final, lean image by copying only the essential artifacts from the builder stage. It creates a non-root `appuser` for security, copies the application code, and sets the `gunicorn` server as the entry point.
+-   **Stage 1 (Builder):** Installs CPU-only PyTorch and the API's Python dependencies, and pre-downloads the models the service needs at runtime: the FastEmbed `Qdrant/bm25` model and the `BAAI/bge-m3` tokenizer.
+-   **Stage 2 (Final):** Copies only the installed packages, the model cache and the application code onto a clean `python:3.12-slim` base. It creates a non-root `appuser`, defines a `HEALTHCHECK`, and starts the `gunicorn` server.
 
-## Docker image publishing
+See [Deployment](./deployment.md#docker-image) for details.
+
+## Docker Image Publishing
 
 **Workflow:** `.github/workflows/docker-publish.yml`
 
-This workflow automates the process of building and publishing the service's Docker image to the GitHub Container Registry (ghcr.io).
+This workflow builds the service's Docker image and publishes it to the GitHub Container Registry (ghcr.io).
 
--   **Trigger:** This workflow runs automatically whenever a new Git tag matching the pattern `v*` (e.g., `v1.0.0`, `v1.1.0`) is pushed to the repository.
+-   **Trigger:** Runs automatically whenever a Git tag matching `v*` (e.g. `v1.17.2`) is pushed.
 -   **Process:**
-    1.  Logs into the GitHub Container Registry using a temporary `GITHUB_TOKEN`.
-    2.  Uses the `docker/metadata-action` to automatically generate appropriate Docker tags based on the Git tag.
-    3.  Builds the Docker image using the `Dockerfile`.
-    4.  Pushes the newly built and tagged image to the `ghcr.io/datagems-eosc/cross-dataset-discovery-api` repository, making it available for deployment.
+    1.  Logs into the GitHub Container Registry using the workflow's `GITHUB_TOKEN`.
+    2.  Uses `docker/metadata-action` to derive the image tag from the Git tag. The image gets exactly that tag; no `latest` tag is published.
+    3.  Builds the image with Docker Buildx, reusing layers from the GitHub Actions cache to speed up builds.
+    4.  Pushes the image to `ghcr.io/datagems-eosc/cross-dataset-discovery-api`.
 
 ## Vulnerability Scanning
 
 **Workflow:** `.github/workflows/vulnerability-scan-on-demand.yml`
 
-This workflow provides on-demand security scanning of the project's configuration and Docker images using the **Trivy** security scanner.
+This workflow scans the project's configuration and a published Docker image using the **Trivy** security scanner.
 
--   **Trigger:** This workflow is run manually from the GitHub Actions UI (`workflow_dispatch`). It requires an `image_tag` as input to specify which published Docker image to scan.
+-   **Trigger:** Manual. It requires an `image_tag` input naming the published image to scan.
 -   **Process:**
-    1.  **Configuration Scan:** Scans the `Dockerfile` and other repository configuration files for potential security misconfigurations.
-    2.  **Image Scan:** Pulls the specified Docker image from the GitHub Container Registry and scans its operating system packages and Python libraries for known vulnerabilities (CVEs) with `CRITICAL` or `HIGH` severity.
-    3.  **Artifacts:** The JSON reports from both the configuration scan and the image scan are uploaded as build artifacts for review.
+    1.  **Configuration Scan:** Scans the `Dockerfile` and other configuration files of the default branch for security misconfigurations.
+    2.  **Image Scan:** Pulls `ghcr.io/datagems-eosc/cross-dataset-discovery-api:<image_tag>` and scans its operating system packages and Python libraries for known vulnerabilities (CVEs) of `CRITICAL` or `HIGH` severity.
+    3.  **Artifacts:** The JSON reports of both scans are uploaded as build artifacts (`vulnerability-config-scan` and `vulnerability-image-scan`).
 
 ## Static Code Analysis
 
 **Workflow:** `.github/workflows/code-scan-on-demand.yml`
 
-This workflow performs in-depth static code analysis using **GitHub CodeQL** to find potential bugs, security vulnerabilities, and quality issues in the codebase.
+This workflow runs **GitHub CodeQL** to find potential bugs, security vulnerabilities, and quality issues.
 
--   **Trigger:** This workflow is run manually from the GitHub Actions UI (`workflow_dispatch`).
+-   **Trigger:** Manual.
 -   **Process:**
-    1.  It runs two separate analysis jobs: one for the Python source code and one for the GitHub Actions workflow files themselves.
-    2.  For each language, it initializes CodeQL using an extended set of security and quality queries.
-    3.  It performs the analysis and uploads the results directly to the repository's "Security" tab under "Code scanning alerts".
+    1.  Runs two analysis jobs: one for the Python code and one for the GitHub Actions workflow files.
+    2.  Uses the `security-extended` and `security-and-quality` query suites.
+    3.  Uploads the results to the repository's **Security** tab, under **Code scanning alerts**.
 
 ## Code Metrics
 
 **Workflow:** `.github/workflows/code-metrics-on-demand.yml`
 
-This workflow generates a report on the complexity and maintainability of the application's Python code using the **Radon** library.
+This workflow reports on the complexity and maintainability of the API code using **Radon**.
 
--   **Trigger:** This workflow is run manually from the GitHub Actions UI (`workflow_dispatch`).
+-   **Trigger:** Manual.
 -   **Process:**
     1.  Installs the `radon` Python package.
-    2.  Runs three types of analysis on the `cross_dataset_discovery/api_datagems_cross_dataset_discovery/app` directory:
-        -   **Maintainability Index (MI):** A score from 0-100 indicating how easy the code is to maintain.
-        -   **Cyclomatic Complexity (CC):** Measures the number of independent paths through the code, indicating its complexity.
-        -   **Raw Lines of Code (LOC):** Provides basic code size metrics.
-    3.  The complete report is compiled into a text file and uploaded as a build artifact named `code-metrics-report`.
+    2.  Analyzes the `cross_dataset_discovery/darelabdb/api_datagems_cross_dataset_discovery/app` directory:
+        -   **Maintainability Index (MI):** A score from 0 to 100 indicating how easy the code is to maintain.
+        -   **Cyclomatic Complexity (CC):** The number of independent paths through each function, indicating its complexity.
+        -   **Raw Lines of Code (LOC):** Basic code size metrics.
+    3.  Uploads the report as a build artifact named `code-metrics-report`.
+
+## API Tests
+
+**Workflow:** `.github/workflows/test-on-demand.yml`
+
+This workflow runs the Postman test collection against the **deployed** service with Newman. It takes a `tag` input (default `main`) that selects which version of the test collection to run. See [Quality Assurance](./qa.md#testing) for details.
 
 ## Documentation
 
-**Workflow:** `.github/workflows/deploy-docs-on-demand.yml`
+**Workflow:** `.github/workflows/deploy-docs-on-demand.yml` (in the documentation repository)
 
-The deployment of this documentation site is automated by a dedicated GitHub Action workflow.
+This documentation site is built and published by this workflow.
 
--   **Trigger:** This workflow is run manually from the GitHub Actions UI (`workflow_dispatch`).
--   **Process:** When triggered with a version number (e.g., `1.0.0`), the workflow:
-    1.  Installs `mkdocs`, `mike`, and other required tools.
-    2.  Builds the static HTML site from the markdown source files in the `docs/` directory.
-    3.  Uses the `mike` tool to commit the built site to the `gh-pages` branch, organized under the specified version.
-    4.  Updates the `latest` alias to point to this newly deployed version, ensuring visitors see the most recent documentation by default.
+-   **Trigger:** Manual, with a version number (e.g. `1.0.0`) as input.
+-   **Process:**
+    1.  Installs `mkdocs`, `mkdocs-material`, `mike`, and the other required plugins.
+    2.  Builds the static site from the Markdown files in `docs/`.
+    3.  Uses `mike` to commit the built site to the `gh-pages` branch, under the given version.
+    4.  Points the `latest` alias at this version and makes `latest` the default, so visitors see the most recent documentation.
