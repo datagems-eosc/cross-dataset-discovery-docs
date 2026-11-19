@@ -64,7 +64,9 @@ The grant required depends on the endpoint:
 | `POST /ingest/` | `dg_ds-edit` on the profile's dataset | Otherwise `403`. |
 | `GET /ingest/{job_id}` | `dg_ds-edit` on the job's dataset | Otherwise `403`. |
 | `GET /ingest/` | `dg_ds-edit` on the `dataset_id` filter | Without a privileged role, `dataset_id` is required. Otherwise `403`. |
+| `POST /update-metadata/` | `dg_ds-edit` on the profile's dataset | Otherwise `403`. |
 | `DELETE /dataset/{dataset_id}` | `dg_ds-delete` on the dataset | Otherwise `403`. |
+| `/benchmarks/...` (dev only) | None: a privileged role is required | Without one, `403`. |
 
 ### Search Filtering
 

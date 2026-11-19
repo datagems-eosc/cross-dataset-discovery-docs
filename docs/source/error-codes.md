@@ -8,13 +8,15 @@ The API uses standard HTTP status codes to indicate the success or failure of a 
 | :--- | :--- | :--- |
 | `200 OK` | Success | The request was successful. For `POST /ingest/`, the dataset is already indexed and was skipped (`replace=false`). |
 | `202 Accepted` | Job scheduled | `POST /ingest/` scheduled an ingestion job. Poll it with `GET /ingest/{job_id}`. |
-| `400 Bad Request` | Validation error | The request body or parameters are invalid: for example `k` is out of range, `dataset_ids` is an empty list, `search_mode` is unknown, or a required field is missing. For `POST /ingest/`, the profile could not be read or has no `@id`. |
+| `400 Bad Request` | Validation error | The request body or parameters are invalid: for example `k` is out of range, `dataset_ids` is an empty list, `search_mode` is unknown, or a required field is missing. For `POST /ingest/` and `POST /update-metadata/`, the profile could not be read or has no `@id`; for `POST /update-metadata/`, also when the profile has no non-empty `description`. For the benchmark endpoints, an unknown dataset or query set key. |
 | `401 Unauthorized` | Authentication error | The request has no token, or the token is expired, malformed or has an invalid signature. Also returned when the OIDC provider cannot be reached to validate the token. |
 | `403 Forbidden` | Authorization error | The token lacks the required role (`user`, `dg_user` or a privileged role), or the caller lacks the dataset grant the endpoint needs (`dg_ds-edit` or `dg_ds-delete`). See [Security](./security.md). |
-| `404 Not Found` | Not found | `GET /ingest/{job_id}`: no job with this id. `DELETE /dataset/{dataset_id}`: the dataset is not in the index. Also returned for unknown paths. |
+| `404 Not Found` | Not found | `GET /ingest/{job_id}` and `GET /benchmarks/jobs/{job_id}`: no job with this id. `DELETE /dataset/{dataset_id}` and `POST /update-metadata/`: the dataset is not in the index. Also returned for unknown paths, including the `/benchmarks/...` paths where benchmarking is not enabled. |
 | `405 Method Not Allowed` | Wrong method | The path exists, but not with this HTTP method. |
+| `409 Conflict` | Job already running | Benchmark endpoints only: another benchmark job is still running. Only one runs at a time. |
 | `424 Failed Dependency` | Dependency error | A component the request depends on is unavailable. See [Failed Dependency Errors](#failed-dependency-errors). |
-| `500 Internal Server Error` | Unexpected error | An unexpected error occurred while processing the request. This includes Qdrant or the embedding service (TEI) failing *during* a search, ingestion request or deletion, and a malformed analytical pattern sent to `POST /search-ap/`. |
+| `500 Internal Server Error` | Unexpected error | An unexpected error occurred while processing the request. This includes Qdrant or the embedding service (TEI) failing *during* a search, ingestion request, metadata update or deletion, and a malformed analytical pattern sent to `POST /search-ap/`. |
+| `503 Service Unavailable` | Benchmark data unavailable | Benchmark endpoints only: the benchmark manifest under `BENCHMARK_ROOT` cannot be read, or the benchmark job record cannot be saved. |
 
 Search requests never fail because of missing dataset permissions. Results the caller may not see are filtered out, so the response may simply contain fewer (or no) results.
 
@@ -22,12 +24,12 @@ Search requests never fail because of missing dataset permissions. Results the c
 
 ### General Errors
 
-`401`, `403`, `404`, `500`, and the `400` errors of `POST /ingest/` return:
+`401`, `403`, `404`, `409`, `500`, `503`, and the `400` errors of `POST /ingest/`, `POST /update-metadata/` and the benchmark endpoints return:
 
 ```json
 {
   "code": 403,
-  "error": "User does not have permission to ingest this dataset."
+  "error": "User does not have permission to edit this dataset."
 }
 ```
 

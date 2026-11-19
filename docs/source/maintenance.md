@@ -41,6 +41,15 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 
 This deletes all of the dataset's indexed content and rebuilds it from the profile. While the job runs, searches return incomplete results for that dataset.
 
+If only the dataset's metadata has changed in the profile (today, its `description`) and its files have not, update just the metadata instead:
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  "$CDD/update-metadata/?path_to_profile=/s3/path/to/profile.json"
+```
+
+This replaces only the dataset-level items, takes a second or two, and keeps the dataset fully searchable while it runs. A `404` response means the dataset is not indexed yet; ingest it first.
+
 ## Removing a Dataset from the Index
 
 ```bash

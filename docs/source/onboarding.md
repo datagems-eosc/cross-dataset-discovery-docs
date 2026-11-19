@@ -98,7 +98,7 @@ The framework is built upon a set of abstract base classes (ABCs), each defining
 
 | Type | Classes |
 | :--- | :--- |
-| **Loaders** (files) | `CsvLoader`, `XlsxLoader`, `JsonLoader`, `DocumentJsonLoader`, `DocxLoader`, `PptxLoader`, `IpynbLoader`, `ChunkedContentLoader`, `DataframesLoader`, `TableJsonLoader` |
+| **Loaders** (files) | `CsvLoader`, `XlsxLoader`, `JsonLoader`, `DocumentJsonLoader`, `DocxLoader`, `PptxLoader`, `IpynbLoader`, `TextLoader` (text files, or a given text such as a PDF's `raw_content`), `DataframesLoader`, `TableJsonLoader` |
 | **Loaders** (databases) | `SqlDbLoader` (SQLAlchemy URL) |
 | **Loaders** (table retrieval methods) | `AutoDDGLoader`, `BirdieLoader`, `JarTableLoader`, `PneumaLoader`, `QGpTLoader`, `TableRAGLoader` |
 | **Retrievers** | `QdrantHybridRetriever`, `FaissRetriever` (dense), `PyseriniRetriever` (BM25), `ColBERTRetriever`, `RagatouilleColbertRetriever`, `MinHashLshRetriever`, `BirdieRetriever`, `PneumaRetriever`, `TableRAGRetriever` |

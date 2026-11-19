@@ -1,6 +1,6 @@
 # Quality Assurance
 
-Quality assurance (QA) combines automated static analysis, vulnerability scanning, and API-level integration testing to ensure the service functions as expected.
+Quality assurance (QA) combines automated static analysis, vulnerability scanning, and API-level integration testing to ensure the service functions as expected. The quality of the search results themselves is measured separately, against public retrieval benchmarks: see [Evaluation](./evaluation.md).
 
 ## Code Analysis
 
@@ -46,7 +46,7 @@ The service's functionality is validated through API-level integration tests usi
 
     If the health check fails, the remaining requests are skipped.
 
--   **Coverage:** The suite covers only `GET /health` and `POST /search/`. The other endpoints (`POST /search-ap/`, `POST /corpus-analysis-search/`, the ingestion endpoints, and `DELETE /dataset/{dataset_id}`) are not tested automatically. The repository has no unit tests.
+-   **Coverage:** The suite covers only `GET /health` and `POST /search/`. The other endpoints (`POST /search-ap/`, `POST /corpus-analysis-search/`, the ingestion endpoints, `POST /update-metadata/`, `DELETE /dataset/{dataset_id}`, and the benchmark endpoints) are not tested automatically. The repository has no unit tests.
 
 ### How to Run Tests
 

@@ -8,7 +8,7 @@ Every log entry written by the service contains:
 
 - `Timestamp`: ISO 8601 timestamp (UTC).
 - `Message`: The log message (event), e.g. `http_request_finished`.
-- `LogLevel`: The log level.
+- `Level`: The log level (`Debug`, `Info`, `Warning`, `Error`, `Critical`).
 - `DGCorrelationId`: The correlation ID of the HTTP request being processed (see below).
 - `SourceContext`: The name of the logger that produced the entry, e.g. `darelabdb.api_datagems_cross_dataset_discovery.app.main`, or `accounting` for accounting entries.
 - `Application`: Always `cross-dataset-discovery-api`.
@@ -18,7 +18,7 @@ Additional key-value pairs give context for specific events, for example `UserId
 Example:
 
 ```json
-{"query": "renewable energy", "k": 5, "mode": "hybrid", "UserId": "3f2c…", "Application": "cross-dataset-discovery-api", "SourceContext": "darelabdb.api_datagems_cross_dataset_discovery.app.main", "Timestamp": "2026-10-29T10:15:02.123456Z", "Message": "Search completed and filtered.", "LogLevel": "Info", "DGCorrelationId": "b060c227-7002-4be8-8b3c-f7f5ecae85a0", "authorized_results_count": 5}
+{"query": "renewable energy", "k": 5, "mode": "hybrid", "UserId": "3f2c…", "Application": "cross-dataset-discovery-api", "SourceContext": "darelabdb.api_datagems_cross_dataset_discovery.app.main", "Timestamp": "2026-10-29T10:15:02.123456Z", "Message": "Search completed and filtered.", "Level": "Info", "DGCorrelationId": "b060c227-7002-4be8-8b3c-f7f5ecae85a0", "authorized_results_count": 5}
 ```
 
 ## Correlation ID
@@ -51,10 +51,13 @@ Billable user actions are logged as accounting entries, with `SourceContext` set
 | `Search` | A `POST /search/` or `POST /search-ap/` request passes the role check. | `Type` (`+`), `Value` (`1`), `Measure` (`Unit`) |
 | `Corpus Search` | A `POST /corpus-analysis-search/` request passes the role check. | `Type` (`+`), `Value` (`1`), `Measure` (`Unit`) |
 | `IngestDataset` | `POST /ingest/` schedules an ingestion job (not when it is skipped). | `DatasetId`, `Replace`, and `ClientId` when the token has a `clientid` claim |
+| `UpdateDatasetMetadata` | `POST /update-metadata/` replaces a dataset's indexed metadata. | `DatasetId`, and `ClientId` when the token has a `clientid` claim |
 | `DeleteDataset` | `DELETE /dataset/{dataset_id}` deletes a dataset. | `DatasetId`, `DeletedCount`, and `ClientId` when the token has a `clientid` claim |
+
+The benchmark endpoints (`/benchmarks/...`) write no accounting entries.
 
 Example:
 
 ```json
-{"UserId": "3f2c…", "Action": "Search", "Resource": "CrossDatasetDiscovery", "Type": "+", "Value": 1, "Measure": "Unit", "Timestamp": "2026-10-29T10:15:02.120001Z", "Application": "cross-dataset-discovery-api", "SourceContext": "accounting", "Message": "Search action performed", "LogLevel": "Info", "DGCorrelationId": "b060c227-7002-4be8-8b3c-f7f5ecae85a0"}
+{"UserId": "3f2c…", "Action": "Search", "Resource": "CrossDatasetDiscovery", "Type": "+", "Value": 1, "Measure": "Unit", "Timestamp": "2026-10-29T10:15:02.120001Z", "Application": "cross-dataset-discovery-api", "SourceContext": "accounting", "Message": "Search action performed", "Level": "Info", "DGCorrelationId": "b060c227-7002-4be8-8b3c-f7f5ecae85a0"}
 ```

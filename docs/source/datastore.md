@@ -10,6 +10,8 @@ The Cross-Dataset Discovery service stores all of its data in a **Qdrant** vecto
     -   the **index collection** (`QDRANT_COLLECTION`), holding the searchable content;
     -   the **ingestion jobs collection** (`INGESTION_JOBS_COLLECTION`, by default `<QDRANT_COLLECTION>_ingestion_jobs`), holding the job records.
 
+    Where benchmarking is enabled (dev only), two more are used: the **benchmark collection** (`BENCHMARK_QDRANT_COLLECTION`), with the same structure as the index collection, and `<BENCHMARK_QDRANT_COLLECTION>_jobs`, holding the benchmark job records. See [Benchmark Collections](#benchmark-collections).
+
 ### Index Collection
 
 Each indexed item (a table row, a document chunk, a dataset description, …) is stored as one point with two named vectors:
@@ -30,7 +32,9 @@ Every point's payload contains these fields, set by the service:
 | `content` | The indexed text, returned as `content` in search results. |
 | `dataset_id` | The dataset the item belongs to. Used to filter searches and to find, count and delete a dataset's points. |
 | `file_object_id` | The file the item comes from (absent for dataset-level items such as the description). Returned as `object_id` in search results. |
-| `original_filename` | Path of the source file in the dataset storage. |
+| `original_filename` | Path of the source file in the dataset storage (absent for dataset-level items). |
+
+Dataset-level items are recognized by having neither `file_object_id` nor `original_filename`; `POST /update-metadata/` relies on this to find the items it replaces.
 
 Depending on the file format, the payload also contains:
 
@@ -79,9 +83,17 @@ During an ingestion, Qdrant's vector index building (HNSW) is paused for the col
 
 Each ingestion job is stored as one point with no vectors. Its payload is the job record returned by `GET /ingest/{job_id}`. The collection has payload indexes on `status`, `dataset_id` and `started_at`, used to filter and sort `GET /ingest/`.
 
+### Benchmark Collections
+
+The benchmark collection is built with the same code as the index collection, from the benchmark datasets under `BENCHMARK_ROOT`. Its points have the same vectors and payload, plus `page` (1-based) on PDF chunks, because the benchmarks judge results per page. It can be dropped at any time with `DELETE /benchmarks/data/` and rebuilt with `POST /benchmarks/ingest/`.
+
+The benchmark jobs collection stores each benchmark job (ingestion or evaluation) as one point with no vectors; its payload is the record returned by `GET /benchmarks/jobs/{job_id}`, including the evaluation scores. `DELETE /benchmarks/data/` does not touch it. See [Evaluation](./evaluation.md).
+
 ## Other Data Sources
 
 The service also reads, but never writes, these sources during ingestion:
 
 -   **Dataset storage:** a volume mounted into the API pod that holds the dataset profiles and the files they reference.
 -   **Dataset database servers:** PostgreSQL servers holding the `sql-db` datasets, configured with `SQL_DB_BASE_URLS`.
+
+Where benchmarking is enabled, the service also uses the **benchmark folder** (`BENCHMARK_ROOT`) on the dataset storage. It reads the benchmark datasets, profiles and queries from it, and writes each evaluation's per-query results to `eval/runs/<job_id>.jsonl`.
