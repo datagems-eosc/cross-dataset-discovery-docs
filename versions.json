@@ -9,22 +9,16 @@
   {
     "version": "1.17.3",
     "title": "1.17.3",
-    "aliases": [
-      "1.0.0"
-    ]
+    "aliases": []
   },
   {
     "version": "1.13.3",
     "title": "1.13.3",
-    "aliases": [
-      "0.0.5"
-    ]
+    "aliases": []
   },
   {
     "version": "1.12.6",
     "title": "1.12.6",
-    "aliases": [
-      "0.0.2"
-    ]
+    "aliases": []
   }
 ]
