@@ -68,6 +68,15 @@ The *Default* column is the value used when the variable is not set.
 | `SQL_DB_SAMPLE_ROWS` | Number of rows sampled from tables over `SQL_DB_MAX_TABLE_MB`. | `10000` |
 | `SQL_DB_READ_CHUNK_ROWS` | Number of rows read from the database at a time when indexing a table row by row. | `20000` |
 
+### Benchmarks
+
+The `/benchmarks/...` endpoints (see [Evaluation](./evaluation.md)) exist only when both variables below are set and `BENCHMARK_QDRANT_COLLECTION` differs from `QDRANT_COLLECTION`. Otherwise the endpoints are not registered and return `404`. They are meant for dev only; leave both unset in production.
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `BENCHMARK_QDRANT_COLLECTION` | Qdrant collection for the benchmark datasets. Must not be the main collection. Benchmark job records are kept in `<BENCHMARK_QDRANT_COLLECTION>_jobs`. Both are created automatically. | empty (benchmarks disabled) |
+| `BENCHMARK_ROOT` | Folder, on the service's mounted storage, with the benchmark datasets, profiles, queries and results (e.g. `/s3/cdd_benchmarks`). The service writes per-query results under `eval/runs/` in it. | empty (benchmarks disabled) |
+
 ### LLM (Corpus Analysis Search)
 
 `POST /corpus-analysis-search/` uses an LLM, which can come from two providers:

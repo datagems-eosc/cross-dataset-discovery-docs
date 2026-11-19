@@ -20,7 +20,8 @@ nav:
     - Maintenance: maintenance.md
   - Developer Guides:
     - Onboarding (Adding Features): onboarding.md
-    - Quality Assurance (Evaluation): qa.md
+    - Quality Assurance: qa.md
+    - Evaluation: evaluation.md
     - FAQ & Known Issues: faq.md
   - License: license.md
   - DataGEMS Home: https://datagems-eosc.github.io/

@@ -126,6 +126,237 @@
         ],
         "type": "object"
       },
+      "BenchmarkDataDeleted": {
+        "properties": {
+          "collection": {
+            "description": "The benchmark collection.",
+            "type": "string"
+          },
+          "deleted": {
+            "description": "Number of points it held (`0` if it did not exist).",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "collection",
+          "deleted"
+        ],
+        "type": "object"
+      },
+      "BenchmarkEvaluateRequest": {
+        "properties": {
+          "name": {
+            "description": "Label of the run in `GET /benchmarks/results/`.",
+            "nullable": true,
+            "type": "string"
+          },
+          "query_sets": {
+            "description": "Query set keys from the benchmark manifest. All query sets if omitted.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "scopes": {
+            "default": [
+              "pooled"
+            ],
+            "description": "`pooled`: search all benchmark datasets; `restricted`: only the dataset holding the answers.",
+            "items": {
+              "enum": [
+                "pooled",
+                "restricted"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "search_modes": {
+            "default": [
+              "sparse",
+              "dense",
+              "hybrid"
+            ],
+            "description": "Search modes to evaluate, each run separately.",
+            "items": {
+              "enum": [
+                "sparse",
+                "dense",
+                "hybrid"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "BenchmarkIngestRequest": {
+        "properties": {
+          "datasets": {
+            "description": "Dataset keys from the benchmark manifest. All datasets if omitted.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "replace": {
+            "default": false,
+            "description": "Re-ingest datasets that are already indexed.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "BenchmarkJob": {
+        "properties": {
+          "datasets": {
+            "description": "Ingestion jobs: the outcome per dataset key, including `items_submitted`, `items_indexed`, `points_in_qdrant` and the dataset's status.",
+            "type": "object"
+          },
+          "error": {
+            "description": "The failure reason (set only when the job fails or is interrupted).",
+            "nullable": true,
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "ingest",
+              "evaluate"
+            ],
+            "type": "string"
+          },
+          "progress": {
+            "description": "Progress of a running job, e.g. `done`, `total` and `current`.",
+            "type": "object"
+          },
+          "request": {
+            "description": "The request body that started the job.",
+            "type": "object"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "`interrupted` means the service restarted before the job finished; re-run an interrupted ingestion with `replace: true`.",
+            "enum": [
+              "running",
+              "completed",
+              "failed",
+              "interrupted"
+            ],
+            "type": "string"
+          },
+          "summary": {
+            "description": "Completed evaluation jobs: the scores, one row per query set, search mode and scope.",
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "job_id",
+          "kind",
+          "status",
+          "started_at"
+        ],
+        "type": "object"
+      },
+      "BenchmarkJobStarted": {
+        "properties": {
+          "datasets": {
+            "description": "Ingestion jobs: the dataset keys that will be ingested.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "job_id": {
+            "description": "The job to poll with `GET /benchmarks/jobs/{job_id}`.",
+            "type": "string"
+          },
+          "query_sets": {
+            "description": "Evaluation jobs: the query set keys that will be evaluated.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "type": "object"
+      },
+      "BenchmarkResults": {
+        "properties": {
+          "columns": {
+            "description": "One column per run, search mode and scope: `<name> (<job id prefix>) | <mode> | <scope>`.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "runs": {
+            "description": "The evaluations shown, oldest first.",
+            "items": {
+              "properties": {
+                "request": {
+                  "type": "object"
+                },
+                "run_id": {
+                  "type": "string"
+                },
+                "started_at": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "table": {
+            "description": "One row per query set, plus a `(mean)` row for benchmarks with several query sets.",
+            "items": {
+              "properties": {
+                "benchmark": {
+                  "type": "string"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "query_set": {
+                  "type": "string"
+                },
+                "values": {
+                  "additionalProperties": {
+                    "nullable": true,
+                    "type": "number"
+                  },
+                  "description": "The metric's value per column.",
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "CorpusSearchRequest": {
         "properties": {
           "dataset_ids": {
@@ -211,7 +442,7 @@
           },
           "error": {
             "description": "A human-readable error message.",
-            "example": "User does not have permission to ingest this dataset.",
+            "example": "User does not have permission to edit this dataset.",
             "type": "string"
           }
         },
@@ -438,6 +669,23 @@
         },
         "type": "object"
       },
+      "UpdateMetadataResponse": {
+        "properties": {
+          "dataset_id": {
+            "description": "The UUID of the dataset.",
+            "type": "string"
+          },
+          "deleted_count": {
+            "description": "Number of previously indexed dataset-level points that were replaced.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "deleted_count"
+        ],
+        "type": "object"
+      },
       "ValidationErrorDetail": {
         "properties": {
           "Key": {
@@ -517,6 +765,439 @@
         "summary": "Liveness",
         "tags": [
           "Monitoring"
+        ]
+      }
+    },
+    "/benchmarks/data/": {
+      "delete": {
+        "description": "Drops the benchmark collection. Benchmark job records and results are kept, and no other collection is touched. Available only where benchmarking is enabled (`BENCHMARK_QDRANT_COLLECTION` and `BENCHMARK_ROOT` set; dev only), otherwise `404`. Requires a privileged role (`dg_admin`, `dg_system` or `dg_dataset-curator`).",
+        "operationId": "delete_benchmark_data_benchmarks_data__delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkDataDeleted"
+                }
+              }
+            },
+            "description": "The collection was dropped (or did not exist)."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - the token has no privileged role."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Benchmarking is not enabled on this deployment."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Another benchmark job is still running. Only one runs at a time."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Delete the Benchmark Collection",
+        "tags": [
+          "Benchmarks"
+        ]
+      }
+    },
+    "/benchmarks/evaluate/": {
+      "post": {
+        "description": "Runs every query of the selected query sets through the same search code as `POST /search/` (top 100 hits), once per search mode and scope, and scores the results. Runs as a background job; poll it with `GET /benchmarks/jobs/{job_id}` or compare runs with `GET /benchmarks/results/`. The job fails if a dataset it needs has not been ingested. Available only where benchmarking is enabled (`BENCHMARK_QDRANT_COLLECTION` and `BENCHMARK_ROOT` set; dev only), otherwise `404`. Requires a privileged role (`dg_admin`, `dg_system` or `dg_dataset-curator`).",
+        "operationId": "evaluate_benchmarks_benchmarks_evaluate__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BenchmarkEvaluateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkJobStarted"
+                }
+              }
+            },
+            "description": "Evaluation job started."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ValidationErrorResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Unknown dataset or query set key, or an invalid request body."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - the token has no privileged role."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Benchmarking is not enabled on this deployment."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Another benchmark job is still running. Only one runs at a time."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The benchmark manifest under `BENCHMARK_ROOT` cannot be read, or the job record cannot be saved."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Evaluate Search on the Benchmarks",
+        "tags": [
+          "Benchmarks"
+        ]
+      }
+    },
+    "/benchmarks/ingest/": {
+      "post": {
+        "description": "Indexes benchmark datasets into the benchmark collection, one after another, with the same code as `POST /ingest/`. Runs as a background job; poll it with `GET /benchmarks/jobs/{job_id}`. Already indexed datasets are skipped unless `replace` is true. Available only where benchmarking is enabled (`BENCHMARK_QDRANT_COLLECTION` and `BENCHMARK_ROOT` set; dev only), otherwise `404`. Requires a privileged role (`dg_admin`, `dg_system` or `dg_dataset-curator`).",
+        "operationId": "ingest_benchmarks_benchmarks_ingest__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BenchmarkIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkJobStarted"
+                }
+              }
+            },
+            "description": "Ingestion job started."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ValidationErrorResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Unknown dataset or query set key, or an invalid request body."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - the token has no privileged role."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Benchmarking is not enabled on this deployment."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Another benchmark job is still running. Only one runs at a time."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The benchmark manifest under `BENCHMARK_ROOT` cannot be read, or the job record cannot be saved."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Ingest Benchmark Datasets",
+        "tags": [
+          "Benchmarks"
+        ]
+      }
+    },
+    "/benchmarks/jobs/{job_id}": {
+      "get": {
+        "description": "Returns the status, progress and outcome of a benchmark ingestion or evaluation job. Available only where benchmarking is enabled (`BENCHMARK_QDRANT_COLLECTION` and `BENCHMARK_ROOT` set; dev only), otherwise `404`. Requires a privileged role (`dg_admin`, `dg_system` or `dg_dataset-curator`).",
+        "operationId": "get_benchmark_job_benchmarks_jobs__job_id__get",
+        "parameters": [
+          {
+            "description": "The job id.",
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkJob"
+                }
+              }
+            },
+            "description": "The job record."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - the token has no privileged role."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No benchmark job with this id, or benchmarking is not enabled on this deployment."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Get a Benchmark Job",
+        "tags": [
+          "Benchmarks"
+        ]
+      }
+    },
+    "/benchmarks/results/": {
+      "get": {
+        "description": "Returns the latest completed evaluations side by side: one row per query set (plus benchmark means), one column per run, search mode and scope. All metrics of a run are in its job record. Available only where benchmarking is enabled (`BENCHMARK_QDRANT_COLLECTION` and `BENCHMARK_ROOT` set; dev only), otherwise `404`. Requires a privileged role (`dg_admin`, `dg_system` or `dg_dataset-curator`).",
+        "operationId": "benchmark_results_benchmarks_results__get",
+        "parameters": [
+          {
+            "description": "How many of the latest evaluations to show.",
+            "in": "query",
+            "name": "last",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The metric to show, e.g. `recall@10`. Each query set's main metric if omitted.",
+            "in": "query",
+            "name": "metric",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkResults"
+                }
+              }
+            },
+            "description": "The results table."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "`last` is out of range."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - the token has no privileged role."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Benchmarking is not enabled on this deployment."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Compare Benchmark Results",
+        "tags": [
+          "Benchmarks"
         ]
       }
     },
@@ -1182,6 +1863,111 @@
           "Search"
         ]
       }
+    },
+    "/update-metadata/": {
+      "post": {
+        "description": "Re-indexes the dataset-level metadata of an already-indexed dataset from its profile, without re-ingesting its files. Today the dataset `description` is the only dataset-level metadata that is indexed, so only its point is replaced. The caller needs a `dg_ds-edit` grant on the profile's `@id` or a privileged role. The new point is written before the old ones are deleted, so the dataset stays searchable throughout. Content indexed from the dataset's files is not touched; when the files have changed, use `POST /ingest/` with `replace=true`.",
+        "operationId": "update_dataset_metadata_update_metadata__post",
+        "parameters": [
+          {
+            "description": "Path to the dataset profile JSON, as seen by the service.",
+            "in": "query",
+            "name": "path_to_profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateMetadataResponse"
+                }
+              }
+            },
+            "description": "The dataset's indexed metadata was replaced."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ValidationErrorResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "The profile could not be read, has no `@id`, or has no non-empty `description`; or a parameter is invalid."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized - missing, expired or invalid JWT."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden - missing required role, or no `dg_ds-edit` grant on this dataset."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The dataset is not in the index. Ingest it with `POST /ingest/` first."
+          },
+          "424": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailedDependencyResponse"
+                }
+              }
+            },
+            "description": "Failed Dependency - the search component failed to initialize at startup. The failing component is named in `message.source`."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error - Qdrant or the embedding service (TEI) failed while the metadata was being replaced."
+          }
+        },
+        "security": [
+          {
+            "OAuth2Bearer": []
+          }
+        ],
+        "summary": "Update a Dataset's Metadata",
+        "tags": [
+          "Ingestion"
+        ]
+      }
     }
   },
   "servers": [
@@ -1202,6 +1988,10 @@
     {
       "description": "Endpoints for monitoring the service health.",
       "name": "Monitoring"
+    },
+    {
+      "description": "Dev-only endpoints that index public retrieval benchmarks into a separate collection and score the service's search against them. Require a privileged role.",
+      "name": "Benchmarks"
     }
   ]
 }

@@ -20,13 +20,21 @@ All endpoints except `GET /` and `GET /health` require a valid JWT Bearer token 
 | `POST` | `/search-ap/` | Search, using an analytical pattern as request and response | `dg_ds-browse` (results are filtered) |
 | `POST` | `/corpus-analysis-search/` | LLM-assisted search for text passages | `dg_ds-browse` (results are filtered) |
 | `POST` | `/ingest/` | Index a dataset from its profile (background job) | `dg_ds-edit` |
+| `POST` | `/update-metadata/` | Re-index an indexed dataset's metadata from its profile, without its files | `dg_ds-edit` |
 | `GET` | `/ingest/` | List ingestion jobs | `dg_ds-edit` on the `dataset_id` filter (privileged roles can list all) |
 | `GET` | `/ingest/{job_id}` | Get the status of an ingestion job | `dg_ds-edit` |
 | `DELETE` | `/dataset/{dataset_id}` | Remove a dataset from the index | `dg_ds-delete` |
 | `GET` | `/` | Liveness check | none (no authentication) |
 | `GET` | `/health` | Readiness check of the service and its dependencies | none (no authentication) |
+| `POST` | `/benchmarks/ingest/` | Index benchmark datasets into the benchmark collection (background job) | privileged role only (dev only) |
+| `POST` | `/benchmarks/evaluate/` | Run and score the benchmark queries (background job) | privileged role only (dev only) |
+| `GET` | `/benchmarks/jobs/{job_id}` | Get the status and outcome of a benchmark job | privileged role only (dev only) |
+| `GET` | `/benchmarks/results/` | Compare the latest evaluations | privileged role only (dev only) |
+| `DELETE` | `/benchmarks/data/` | Drop the benchmark collection | privileged role only (dev only) |
 
 Callers with a privileged role bypass all dataset grant checks.
+
+The `/benchmarks/...` endpoints exist only where benchmarking is enabled (dev only); elsewhere they return `404`. They work on a separate Qdrant collection and never touch the main index. They are described in [Evaluation](./evaluation.md).
 
 ---
 
@@ -235,17 +243,41 @@ The profile must contain the dataset `@id` and `description`, plus the list of `
 
 If the profile cannot be read or has no `@id`, the request fails immediately with `400`. If `description` is missing, the job fails.
 
-Each file is handled according to its `original_format`:
+Each file is handled according to its `original_format`. All chunking is done by the service itself: text is split into token-based chunks with the `BAAI/bge-m3` tokenizer, and the profile only supplies the text (for PDFs) or points to the file.
 
 | `original_format` | How it is indexed | Extra file fields used |
 | :--- | :--- | :--- |
 | `csv`, `xlsx`, `xls` | One item per row, serialized as `column: value` text (numeric values are left out) | – |
 | `sql-db` | One item per table row (serialized as above), read from the database named `name` on one of the configured SQL servers. Tables larger than `SQL_DB_MAX_TABLE_MB` (default 512 MB) instead get one item per column, built from a sample of rows (see [Configuration](./configuration.md#ingestion)) | `name` (database), `tables[].name` (optional; defaults to all tables) |
-| `text`, `application/pdf` | One item per pre-computed chunk | `chunked_content` (a list of sections, each with a `chunks` list) |
-| `json`, `application/json` | Records split into token-based chunks; the title is prepended to each chunk | `content_fields` (default `["text"]`), `metadata_fields` (default: all other fields), `title_field` (default `"title"`) |
-| `docx`, `pptx`, `ipynb` | Text split into token-based chunks | – |
+| `text` | One item per chunk of the file's text, read from `source_file`. Any text encoding is accepted (UTF-8 is tried first, then the encoding is detected). Browser cookie exports are never indexed. | – |
+| `application/pdf` | One item per chunk of the PDF's extracted text, given in the profile. If `raw_content` is missing or empty, the file is skipped (logged as a warning). | `raw_content` (the PDF's extracted text) |
+| `json`, `jsonl`, `application/json` | One item per chunk of each record's content fields; the title is prepended to each chunk. `jsonl` files are read as JSON Lines (one record per line), whatever their extension; for the other two formats, files ending in `.jsonl` or `.ndjson` are read as JSON Lines. | `content_fields` (default `["text"]`), `metadata_fields` (default: all other fields), `title_field` (default `"title"`) |
+| `docx`, `pptx`, `ipynb` | One item per chunk of the document's text | – |
 
 Files with any other format are skipped (logged as a warning).
+
+### Update a Dataset's Metadata
+
+* **Endpoint:** `POST /update-metadata/?path_to_profile={path}`
+* **Description:** Re-indexes the dataset-level metadata of an already-indexed dataset from its profile, without re-ingesting its files. Use it when only the profile's metadata has changed; when the files have changed, use `POST /ingest/` with `replace=true`. The caller needs a `dg_ds-edit` grant on the profile's `@id`, or a privileged role.
+
+    Today the dataset `description` is the only dataset-level metadata that is indexed, so only its search item is replaced. Content indexed from the dataset's files is not touched.
+
+    The request runs synchronously (it embeds a single item). The new item is written before the old one is deleted, so the dataset stays searchable throughout; if the request fails midway, the next call removes any leftovers.
+* **Query Parameters:**
+    * `path_to_profile`: Required. Path to the dataset profile JSON, as seen by the service.
+* **Response Body (Success):**
+
+```json
+{
+  "dataset_id": "uuid-of-the-dataset",
+  "deleted_count": 1
+}
+```
+
+* `deleted_count`: Number of previously indexed dataset-level items that were replaced.
+
+The request fails with `400` if the profile cannot be read, has no `@id`, or has no non-empty `description`, and with `404` if the dataset is not in the index.
 
 ### Get Ingestion Job Status
 
@@ -338,6 +370,14 @@ Job records are stored in Qdrant (in their own collection), so they survive serv
 ```
 
 If the dataset is not in the index, the endpoint returns `404`.
+
+---
+
+## Evaluation
+
+The `/benchmarks/...` endpoints measure the quality of the search results. They index public retrieval benchmarks (ViDoRe, IRPAPERS, T²-RAGBench, OTT-QA) into a separate Qdrant collection, run each benchmark's queries through the same search code as `POST /search/`, and score the results against the correct answers with metrics such as Recall@k, MRR@k and nDCG@10. Ingestion and evaluation run as background jobs, followed with `GET /benchmarks/jobs/{job_id}`; `GET /benchmarks/results/` compares the latest runs side by side.
+
+The endpoints exist only where benchmarking is enabled (dev only) and require a privileged role. The main index is never touched. See [Evaluation](./evaluation.md) for the benchmarks, the request bodies, how to run an evaluation, and how to read the results.
 
 ---
 

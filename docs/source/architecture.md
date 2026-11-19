@@ -163,11 +163,13 @@ sequenceDiagram
     1. If `replace` is true, the dataset's existing points are deleted.
     2. Items are produced, one at a time, from:
         - the dataset description;
-        - each file in the profile, using the loader for its format (tables row by row, documents in token-based chunks, pre-chunked text and PDFs as given, SQL tables from the database servers).
+        - each file in the profile, using the loader for its format (tables row by row; SQL tables from the database servers; documents, text files and PDF text split by the service into token-based chunks).
     3. Items are processed in batches: the dense vectors come from TEI and the sparse vectors are computed locally. The resulting points are uploaded to Qdrant. Items are streamed, so large datasets are never fully loaded into memory.
     4. After the upload, Qdrant's vector indexing and quantization are applied to the collection.
     5. The job record is updated as it progresses, and finally set to `completed` (with item counts) or `failed` (with the error).
 
 The client polls `GET /ingest/{job_id}` for progress. If the service restarts while a job is running, the job is marked `interrupted` at the next start.
+
+`POST /update-metadata/` re-indexes only a dataset's dataset-level items (today, its description) from its profile, synchronously. Qdrant points get random ids, so the old items are found by their payload: they have the dataset's `dataset_id` but neither `file_object_id` nor `original_filename`. The new items are uploaded first, then the old ones are deleted. The points indexed from the dataset's files are left as they are.
 
 `DELETE /dataset/{dataset_id}` removes all points with that `dataset_id` from Qdrant.
